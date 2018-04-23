@@ -196,24 +196,48 @@ def init_log_setups_block():
 def init_prog_settings_opt_card_1_block():
     """Option Card #1 Setups Block starts at 31999 (0x7CFF) and ends at 32574
     (0x7F3E). """
-    """TO DO"""
+    for i in range(31999, 32575):
+        c.write_single_register(i, 22)
 
+def init_digital_io_pulse_block():
+    """Settings registers for Digital I/O Pulse Output Card. Starts at 32000 
+    (0x7d00) and ends at 32062 (0x7d3e)."""
+    for i in range(32000, 32063):
+        c.write_single_register(i, 23)
 
-def init_prog_settings_opt_card_2_block():
-    """TO DO"""
+def init_digital_io_relay_block():
+    """Settings registers for digital I/O Relay Card. Starts at 32063 (0x7d3f)
+    and ends at 32574 (0x7f3e). """
+    for i in range(32063, 32575):
+        c.write_single_register(i, 24)
 
+def init_option_card_2_setups_block():
+    """ Programmable Settings for Option Card 2. Starts at 32999 (0x80E7) and
+    ends at 33574 (0x8326). """
+    for i in range(32999, 33575):
+        c.write_single_register(i, 25)
+
+def init_overlays_option_card_2_block():
+    """ Overlays etc for option card 2 programming. Starts at 33000 (0x80E8) 
+    and ends at 33574 (0x8326). """
+    for i in range(33000, 33575):
+        c.write_single_register(i, 26)
 
 def init_secondary_readings_block():
-    """TO DO"""
-
+    """ Secondary block begins at 40000 (0x9C40) and ends at 40099 (0x9Ca3). """
+    for i in range(40000, 40100):
+        c.write_single_register(i, 27)
 
 def init_log_retrieval_block():
-    """TO DO"""
-
+    """ Log retrieval block starts at 49996 (0xc34c) and ends at 50125 (0xc3cd). """
+    for i in range(49996, 50126):
+        c.write_single_register(i, 28)
 
 def init_log_status_block():
-    """TO DO"""
-
+    """ Log status block starts at 50999 (0xc737) and ends at 51126 (0xc7b6). """
+    for i in range(50999, 51127):
+        c.write_single_register(i, 29)
+    c.write_single_register(51036, 0)
 
 def init():
     c.open()
@@ -224,6 +248,28 @@ def init():
     init_primary_demand_block()
     init_uncompensated_readings_block()
     init_phase_angle_block()
+    init_status_block()
+    init_THD_block()
+    init_short_term_primary_min_block()
+    init_primary_min_block()
+    init_primary_min_timestamp_block()
+    init_short_term_primary_max_block()
+    init_primary_max_block()
+    init_primary_max_timestamp_block()
+    init_option_card_1_block()
+    init_option_card_2_block()
+    init_accumulators_block()
+    init_resets_block()
+    init_commands_section_block()
+    init_log_setups_block()
+    init_prog_settings_opt_card_1_block()
+    init_digital_io_pulse_block()
+    init_digital_io_relay_block()
+    init_option_card_2_setups_block()
+    init_overlays_option_card_2_block()
+    init_secondary_readings_block()
+    init_log_status_block()
+    init_log_retrieval_block()
     c.close()
 
 
