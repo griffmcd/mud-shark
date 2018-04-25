@@ -4,7 +4,6 @@ from collections import namedtuple
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 502
 
-
 def connect():
     """Connects to the defined HOST AND PORT. returns the client"""
     c = ModbusClient()
@@ -16,11 +15,18 @@ def connect():
                             + str(SERVER_PORT))
     return c
 
-def program_log(log_n, regs, interval):
-    """Takes the log number to program (2, 3, or 4, corresponding to the historical
-    logs 1, 2, and 3), a list of registers to log, and the interval at which to log
-    them. Logs are programmed by writing to the historical log blocks starting at 
-    0x7917 for historical log 1"""
+### LOG METHODS ### 
+def disengage_log(client, log_n):
+    """To disengage the log, write the log number log_n (log to be disengaged) to
+    the log index and 0 to the enable bit [0xC34F, 1 register]"""
+    log_str = to_binary_string(log_n, 8)
+    # e is the enable bit--setting it to 0 disengages the log
+    e = "0"
+    # s doesn't really matter here, so it's all 0's I guess
+    s = "0000000"
+    msg = bin_string_to_int(log_str + e + s)
+    client.write_single_register(49999, msg) 
+
 
 def engage_log(c, log_n, s):
     """First step. Engage the log. log_n is the log to be engaged. s is the type 
@@ -50,67 +56,6 @@ def engage_log(c, log_n, s):
     return log_vals
 
 
-def get_current_port(client):
-    """Returns the value stored in the session com port register"""
-    return client.read_holding_registers(4499, 1)
-
-
-def get_first_timestamp(status):
-    """Extracts the year, month, day, hour, minute, and second of the 
-    first timestamp record and then packs it all into a namedtuple, which
-    is returned.
-    NOTE: This will not work until we implement the proper masks
-    for each of the date formats """
-    # first byte of r1 is the year, second is the month
-    r1 = status[6]
-    # first byte of r2 is the day, second is hour
-    r2 = status[7]
-    # first byte of r3 is the minute, second is second (heh)
-    r3 = status[8]
-    year = get_year(r1)
-    month = get_month(r1)
-    day = get_day(r2)
-    hour = get_hour(r2)
-    minute = get_min(r3)
-    second = get_sec(r3)
-    timestamp = namedtuple('timestamp', ['year', 'month', 'day', 'hour', 'minute', 'second'])
-    t = timestamp(year, month, day, hour, minute, second) 
-    return t
-
-def get_last_timestamp(status):
-    """Extracts the year, month, day, hour, minute, and second of the 
-    last timestamp record and then packs it all into a namedtuple, which
-    is returned.
-    NOTE: This will not work until we implement the proper masks
-    for each of the date formats """
-    # first byte of r1 is the year, second is the month
-    r1 = status[9]
-    # first byte of r2 is the day, second is hour
-    r2 = status[10]
-    # first byte of r3 is the minute, second is second (heh)
-    r3 = status[11]
-    year = get_year(r1)
-    month = get_month(r1)
-    day = get_day(r2)
-    hour = get_hour(r2)
-    minute = get_min(r3)
-    second = get_sec(r3)
-    timestamp = namedtuple('timestamp', ['year', 'month', 'day', 'hour', 'minute', 'second'])
-    t = timestamp(year, month, day, hour, minute, second) 
-    return t
-   
-
-def disengage_log(client, log_n):
-    """To disengage the log, write the log number log_n (log to be disengaged) to
-    the log index and 0 to the enable bit [0xC34F, 1 register]"""
-    log_str = to_binary_string(log_n, 8)
-    # e is the enable bit--setting it to 0 disengages the log
-    e = "0"
-    # s doesn't really matter here, so it's all 0's I guess
-    s = "0000000"
-    msg = bin_string_to_int(log_str + e + s)
-    client.write_single_register(49999, msg) 
-
 def get_log(log_n, log_t=0):
     """log_n is the log to be retrieved. s is the type of log to retrieve.
     s is, by default, 0.
@@ -126,113 +71,11 @@ def get_log(log_n, log_t=0):
         return records
 
 
-def get_log_availability(status):
-    """Returns the log availability of the status provided."""
-    return status[5]
-
-
-def get_log_status_addr(log_n):
-    """Returns the register address of log_n"""
-    if log_n == 0:
-        # system log (0xC747)
-        log_status_addr = 51015
-    elif log_n == 1:
-        # alarm (which is #1, but actually comes before system log)
-        # hex address C737
-        log_status_addr = 50999
-    elif log_n == 2:
-        # hist log 1 (0xC757)
-        log_status_addr = 51031
-    elif log_n == 3:
-        # hist log 2 (0xC767)
-        log_status_addr = 51047
-    elif log_n == 4:
-        # hist log 3 (0xC777)
-        log_status_addr = 51063
-    elif log_n == 5:
-        # I/O Change log (0x787
-        log_status_addr = 51079
-    else:
-        raise Exception("Unsupported log number!\n")
-    return log_status_addr
-
-
-def get_log_status_block(client, addr):
-    """Retrieves the whole log status block from the address provided. Returns a
-    list."""
-    return client.read_holding_registers(addr, 16)
-
-def get_max_records(status):
-    """Works just like get_num_records, but different locations are loaded
-    from the status block"""
-    higher_order = to_binary_string(status[0], 16)
-    lower_order = to_binary_string(status[1], 16)
-    max_records = bin_string_to_int(higher_order + lower_order)
-    return max_records
-
-
-def get_num_records(status):
-    """Gets the number of records of the log to be retrieved. Takes the two
-    register values that represent the 32 bit integer log size, turns them
-    into their binary representation (as a string), concatenates them, 
-    and then returns the decimal value that that 32 bit number represents."""
-    higher_order = to_binary_string(status[2], 16)
-    lower_order = to_binary_string(status[3], 16)
-    num_records = bin_string_to_int(higher_order + lower_order)
-    return num_records
-
-
-def get_record_size(status):
-    """Returns the value stored in the record size register of the given log
-    status block"""
-    return status[4]
-
-def get_window_block(client):
-    """Reads the window block where logs are retrieved. This block starts at
-    0xC351 and is 125 registers long. The first half of the first register
-    is the window status, the second half of that register plus the next
-    register is the offset of the first record in the window, and the other
-    123 registers are the window where the log is retrieved.
-    We pull the record index and the window in one request to minimize 
-    communication time and to ensure that the record index matches the data 
-    in the data window returned.
-    Space in the window after the last specified record (RecordSize * RecordsPerWindow)
-    is padded with 0xFF, and can be safely discarded."""
-    window_block = client.read_holding_registers(50001, 125)
-    return window_block
-
-def get_window_status(block):
-    """Retrieves the value stored in 0xC351 (50001), converts it to a binarys
-    string, gets the higher half of it, and then returns the decimal version of
-    that number, which is the window status.
-    The other half of this register is part 1 of three of the offset of the first
-    record in the window"""
-    bin_str = to_binary_string(block[0], 16)
-    window_status = bin_string_to_int(bin_str[:8])
-    return window_status
-
-
-def get_record_index(block):
-    """Record index is a 254 bit record number. It's stored across 1 and a half
-    registers, starting at the lower order bits of the first register at 0xC351 
-    (50001), and then contiuing into the two bytes of the second register.
-    The logs first record is latched as a reference point when the session is 
-    enabled.
-    This offset is a record index relative to that point. Value provided is the 
-    relative index of the whole or partial record that begins the window."""
-    r1 = to_binary_string(block[0], 16)
-    higher_order = r1[8:]
-    lower_order = to_binary_string(block[1], 16)
-    record_index = bin_string_to_int(higher_order + lower_order)
-    return record_index
-
-
-def get_record_window(block, rec_size, rec_pw):
-    """Space in the window after the last specified record (RecordSize x RPW)
-    is padded with 0xFF, and can be safely discarded"""
-    last_rec = rec_size * rec_pw
-    record = block[2:last_rec + 1] # slicing is inclusive, exclusive, hence plus 1
-    return record
+def program_log(log_n, regs, interval):
+    """Takes the log number to program (2, 3, or 4, corresponding to the historical
+    logs 1, 2, and 3), a list of registers to log, and the interval at which to log
+    them. Logs are programmed by writing to the historical log blocks starting at 
+    0x7917 for historical log 1"""
 
 
 def retrieve_records(client, rpw, max_recs, rec_size):
@@ -288,6 +131,34 @@ def retrieve_records(client, rpw, max_recs, rec_size):
                 write_retrieval(client, rpw, expected_record_index)
 
 
+### CLIENT FUNCTIONS ### 
+
+def get_current_port(client):
+    """Returns the value stored in the session com port register"""
+    return client.read_holding_registers(4499, 1)
+
+
+def get_log_status_block(client, addr):
+    """Retrieves the whole log status block from the address provided. Returns a
+    list."""
+    return client.read_holding_registers(addr, 16)
+
+
+def get_window_block(client):
+    """Reads the window block where logs are retrieved. This block starts at
+    0xC351 and is 125 registers long. The first half of the first register
+    is the window status, the second half of that register plus the next
+    register is the offset of the first record in the window, and the other
+    123 registers are the window where the log is retrieved.
+    We pull the record index and the window in one request to minimize 
+    communication time and to ensure that the record index matches the data 
+    in the data window returned.
+    Space in the window after the last specified record (RecordSize * RecordsPerWindow)
+    is padded with 0xFF, and can be safely discarded."""
+    window_block = client.read_holding_registers(50001, 125)
+    return window_block
+
+
 def verify_engaged(client, addr):
     """Verify that the log availability register is equal to the session com
     port"""
@@ -299,6 +170,35 @@ def verify_engaged(client, addr):
     # engaged with the log.
     if(log_availability != current_port):
         Exception("This port is not currently engaged! Try again.\n")
+
+
+def write_retrieval(client, record_size, record_index=0):
+    """Writes to the retrieval header registers, starting at 0xc350-0xc352"""
+    records_per_window = get_records_per_window(record_size)
+    # high byte of 0xC350 is the records per window or the records per batch
+    # depending on the most significant bit of the low byte. We use windows
+    # by default (this does not support batches).
+    # The most significant bit of the low byte is the flag that controls records
+    # per window/batch. Always 0.
+    # last seven bits of 0xc350 is the number of repeats. 1 is auto-increment, 
+    # 2-8 if it supports function code 0x23, which we do not. Always 1. 
+
+    # auto increment feature: every time we retrieve a window of records, the 
+    # meter will automatically increment the index and load the next window
+    rpw_str = to_binary_string(records_per_window, 8)
+    msg = bin_string_to_int(rpw_str + "00000001")
+    # after this write, the meter knows the formatting of the log to be
+    # retrieved
+    client.write_single_register(50000, msg)
+    # Now we write the index in 0xc351-2. This is two registers, but the high 
+    # nibble of the first register is the window status, and is read-only. 
+    # So we really have 24 bits for the record index.
+    ind_str = to_binary_string(record_index, 32)
+    fst_reg = bin_string_to_int(ind_str[:16])
+    snd_reg = bin_string_to_int(ind_str[16:])
+    client.write_single_register(50001, fst_reg)
+    client.write_single_register(50002, snd_reg)
+    return records_per_window
 
 
 def write_to_engage(client, log_n, e, s):
@@ -320,6 +220,38 @@ def write_to_engage(client, log_n, e, s):
     client.write_single_register(49999, log_enable_msg)
 
 
+### LOG STATUS FUNCTIONS ### 
+def get_log_availability(status):
+    """Returns the log availability of the status provided."""
+    return status[5]
+
+
+def get_max_records(status):
+    """Works just like get_num_records, but different locations are loaded
+    from the status block"""
+    higher_order = to_binary_string(status[0], 16)
+    lower_order = to_binary_string(status[1], 16)
+    max_records = bin_string_to_int(higher_order + lower_order)
+    return max_records
+
+
+def get_num_records(status):
+    """Gets the number of records of the log to be retrieved. Takes the two
+    register values that represent the 32 bit integer log size, turns them
+    into their binary representation (as a string), concatenates them, 
+    and then returns the decimal value that that 32 bit number represents."""
+    higher_order = to_binary_string(status[2], 16)
+    lower_order = to_binary_string(status[3], 16)
+    num_records = bin_string_to_int(higher_order + lower_order)
+    return num_records
+
+
+def get_record_size(status):
+    """Returns the value stored in the record size register of the given log
+    status block"""
+    return status[4]
+
+
 def get_records_per_window(record_size):
     """Record size is always at least 1--when a log is cleared, a dummy
     record is placed in the first location. This way, we do not have to 
@@ -331,32 +263,76 @@ def get_records_per_window(record_size):
         records_per_window = 246 // record_size
     return records_per_window
 
-def write_retrieval(client, record_size, record_index=0):
-    """Writes to the retrieval header registers, starting at 0xc350-0xc352"""
-    records_per_window = get_records_per_window(record_size)
-    # write the records per window, the number of repeats (1), and record
-    # index (0)
-    # FORMAT: wwwwwwww snnnnnnn
-    #   w - records per window
-    #   s - number of repeats.
-    #   n - record index
-    # by default, number of repeats is one. 
-    # This controls the auto increment feature--every time we retrieve 
-    # a window of records, the meter will automatically increment the 
-    # index and load the next window
-    rpw_str = to_binary_string(records_per_window, 8)
-    ind_str = to_binary_string(record_index, 7)
-    msg = bin_string_to_int(rpw_str + "1" + ind_str)
-    # after this write, the meter knows the formatting of the log to be
-    # retrieved
-    client.write_single_register(50000, msg)
-    return records_per_window
+
+### BLOCK FUNCTIONS ### 
+def get_record_window(block, rec_size, rec_pw):
+    """Space in the window after the last specified record (RecordSize x RPW)
+    is padded with 0xFF, and can be safely discarded"""
+    last_rec = rec_size * rec_pw
+    record = block[2:last_rec + 1] # slicing is inclusive, exclusive, hence plus 1
+    return record
+
+
+def get_record_index(block):
+    """Record index is a 254 bit record number. It's stored across 1 and a half
+    registers, starting at the lower order bits of the first register at 0xC351 
+    (50001), and then contiuing into the two bytes of the second register.
+    The logs first record is latched as a reference point when the session is 
+    enabled.
+    This offset is a record index relative to that point. Value provided is the 
+    relative index of the whole or partial record that begins the window."""
+    r1 = to_binary_string(block[0], 16)
+    higher_order = r1[8:]
+    lower_order = to_binary_string(block[1], 16)
+    record_index = bin_string_to_int(higher_order + lower_order)
+    return record_index
+
+
+def get_window_status(block):
+    """Retrieves the value stored in 0xC351 (50001), converts it to a binarys
+    string, gets the higher half of it, and then returns the decimal version of
+    that number, which is the window status.
+    The other half of this register is part 1 of three of the offset of the first
+    record in the window"""
+    bin_str = to_binary_string(block[0], 16)
+    window_status = bin_string_to_int(bin_str[:8])
+    return window_status
+
+
 
 ####################
 # HELPER FUNCTIONS #
 ####################
 
+# ADDRESS HELPER
+def get_log_status_addr(log_n):
+    """Returns the register address of log_n"""
+    if log_n == 0:
+        # system log (0xC747)
+        log_status_addr = 51015
+    elif log_n == 1:
+        # alarm (which is #1, but actually comes before system log)
+        # hex address C737
+        log_status_addr = 50999
+    elif log_n == 2:
+        # hist log 1 (0xC757)
+        log_status_addr = 51031
+    elif log_n == 3:
+        # hist log 2 (0xC767)
+        log_status_addr = 51047
+    elif log_n == 4:
+        # hist log 3 (0xC777)
+        log_status_addr = 51063
+    elif log_n == 5:
+        # I/O Change log (0x787
+        log_status_addr = 51079
+    else:
+        raise Exception("Unsupported log number!\n")
+    return log_status_addr
 
+
+
+### CONVERTING BINARY / INTS ###
 def to_binary_string(num, bl):
     """Helper function to convert a number into its binary string
     representation. bl is the bit length, to add appropriate padding"""
@@ -372,6 +348,8 @@ def bin_string_to_int(str):
     representation"""
     return int(str, 2)
 
+
+### TIMESTAMP HELPERS ###
 def get_year(reg):
     """Year is the first byte of the register in range (0-99), + 2000"""
     # NOTE WE HAVE TO IMPLEMENT THE BIT MASKING FOR THIS (0x7F)
