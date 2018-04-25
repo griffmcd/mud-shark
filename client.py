@@ -16,33 +16,38 @@ def connect():
                             + str(SERVER_PORT))
     return c
 
+def program_log(log_n, regs, interval):
+    """Takes the log number to program (2, 3, or 4, corresponding to the historical
+    logs 1, 2, and 3), a list of registers to log, and the interval at which to log
+    them. Logs are programmed by writing to the historical log blocks starting at 
+    0x7917 for historical log 1"""
 
-def engage_log(log_n, s):
-    """First step. Engage the log. log_n is the log to be engaged. Has
-    only been tested with historical logs. s is the type of log to retrieve.
+def engage_log(c, log_n, s):
+    """First step. Engage the log. log_n is the log to be engaged. s is the type 
+    of log to retrieve.
     0 is a normal record, 1 is timestamp only, 2 is complete memory image."""
-    c = connect()
-    if c.is_open():
-        log_status_addr = get_log_status_addr(log_n)
-        log_status_block = get_log_status_block(c, log_status_addr)
-        # Store the record size and log availability
-        record_size = get_record_size(log_status_block)
-        log_availability = get_log_availability(log_status_block)
-        max_records = get_max_records(log_status_block)
-        # Check that the log is available
-        if log_availability != 0:
-            raise Exception("Log number " + log_n + " is not available!\n")
-        # write to 0xC34f (1 register) specifying the log to be engage and
-        # desired mode
-        write_to_engage(c, log_n, 1, s)
-        # this step latches the oldest record to index 0, and locks
-        # the log so that only this port can retrieve the log until disengaged.
-        # verify log is engaged:
-        verify_engaged(c, log_status_addr)
-        # write the retrieval information
-        records_per_window  = write_retrieval(c, record_size)
-        # after this, we should be in the clear to retrieve the records
-        return c, log_status_block, record_size, records_per_window, max_records
+    log = namedtuple('log', ['num', 'status', 'record_size', 'records_per_window', 'max_records'])
+    log_status_addr = get_log_status_addr(log_n)
+    log_status_block = get_log_status_block(c, log_status_addr)
+    # Store the record size and log availability
+    record_size = get_record_size(log_status_block)
+    log_availability = get_log_availability(log_status_block)
+    max_records = get_max_records(log_status_block)
+    # Check that the log is available
+    if log_availability != 0:
+        raise Exception("Log number " + log_n + " is not available!\n")
+    # write to 0xC34f (1 register) specifying the log to be engage and
+    # desired mode
+    write_to_engage(c, log_n, 1, s)
+    # this step latches the oldest record to index 0, and locks
+    # the log so that only this port can retrieve the log until disengaged.
+    # verify log is engaged:
+    verify_engaged(c, log_status_addr)
+    # write the retrieval information
+    records_per_window  = write_retrieval(c, record_size)
+    # after this, we should be in the clear to retrieve the records
+    log_vals = log(log_n, log_status_block, record_size, records_per_window, max_records)
+    return log_vals
 
 
 def get_current_port(client):
@@ -72,7 +77,7 @@ def get_first_timestamp(status):
     t = timestamp(year, month, day, hour, minute, second) 
     return t
 
- def get_last_timestamp(status):
+def get_last_timestamp(status):
     """Extracts the year, month, day, hour, minute, and second of the 
     last timestamp record and then packs it all into a namedtuple, which
     is returned.
@@ -108,10 +113,17 @@ def disengage_log(client, log_n):
 
 def get_log(log_n, log_t=0):
     """log_n is the log to be retrieved. s is the type of log to retrieve.
-    s is, by default, 0."""
-    client, log_status, record_size, records_per_window, max_records = engage_log(log_n, log_t)
-    records = retrieve_records(client, records_per_window, max_records)
-    disengage_log(log_n)
+    s is, by default, 0.
+    There are three stages to retrieving a log: Engaging it, retrieving the 
+    records, and then disengaging the log. Returns a list of records."""
+    client = connect()
+    if client.is_open():
+        log = engage_log(client, log_n, log_t)
+        records = retrieve_records(client, log.records_per_window, 
+                log.max_records, log.record_size)
+        disengage_log(log_n)
+        client.close()
+        return records
 
 
 def get_log_availability(status):
@@ -223,7 +235,7 @@ def get_record_window(block, rec_size, rec_pw):
     return record
 
 
-def retrieve_records(client, rpw, max_recs):
+def retrieve_records(client, rpw, max_recs, rec_size):
     """Retrieve the records."""
     # Read the record index and window. We read the index and window in 1 
     # request to minimize communication time and to ensure that the record 
@@ -243,13 +255,13 @@ def retrieve_records(client, rpw, max_recs):
             window_status = get_window_status(window_block)
         if window_status == 0:
             # verify that the record index incremented by RecordsPerWindow.
-            # The record index of the retrieved window is the index of the first 
-            # value will increase by RecordsPerWindow each time the window is read,
+            # value will increase by RecordsPerWindow each time the window 
+            # is read,
             # so it should be 0, N, Nx2, ..., for each window retrieved.
             actual_record_index = get_record_index(window_block)
             if actual_record_index == expected_record_index:
                 # add this to list of windows of records
-                records.append(get_record_window(window_block))
+                records = records + get_record_window(window_block, rec_size, rpw)
                 remaining_records -= rpw
                 if remaining_records <= 0:
                     # if there are no remaining records, go to step 3 (disengage)
@@ -266,7 +278,8 @@ def retrieve_records(client, rpw, max_recs):
                 if expected_record_index > max_recs:
                     # We manually write to the retrieval here to change the rpw size
                     rpw = remaining_records
-                    write_retrieval(client, rpw)
+                    expected_record_index -= remaining_records;
+                    write_retrieval(client, rpw, expected_record_index)
             else:
                 # record index does not match the expected record index. Rewrite
                 # the record index, where the record index will be the same as the
@@ -307,23 +320,30 @@ def write_to_engage(client, log_n, e, s):
     client.write_single_register(49999, log_enable_msg)
 
 
-def write_retrieval(client, record_size, record_index=0):
-    """Writes to the retrieval header registers"""
-    # compute the number of records per window, as follows:
-    if(record_size != 0):
-        records_per_window = (246 // record_size)
+def get_records_per_window(record_size):
+    """Record size is always at least 1--when a log is cleared, a dummy
+    record is placed in the first location. This way, we do not have to 
+    worry about division by zero errors. However, until we have everything
+    up and running, we will keep this check here."""
+    if(record_size == 0):
+        records_per_window = 1
     else:
-        records_per_window = 0
+        records_per_window = 246 // record_size
+    return records_per_window
+
+def write_retrieval(client, record_size, record_index=0):
+    """Writes to the retrieval header registers, starting at 0xc350-0xc352"""
+    records_per_window = get_records_per_window(record_size)
     # write the records per window, the number of repeats (1), and record
     # index (0)
     # FORMAT: wwwwwwww snnnnnnn
     #   w - records per window
     #   s - number of repeats.
     #   n - record index
-    # by default, number of repeats is a feature we will not be using. It
-    # is associated with the modbus code 0x23, which is a specific register
-    # reading function that we don't really need. We start reading at the
-    # 0th record index.
+    # by default, number of repeats is one. 
+    # This controls the auto increment feature--every time we retrieve 
+    # a window of records, the meter will automatically increment the 
+    # index and load the next window
     rpw_str = to_binary_string(records_per_window, 8)
     ind_str = to_binary_string(record_index, 7)
     msg = bin_string_to_int(rpw_str + "1" + ind_str)
@@ -331,8 +351,6 @@ def write_retrieval(client, record_size, record_index=0):
     # retrieved
     client.write_single_register(50000, msg)
     return records_per_window
-
-
 
 ####################
 # HELPER FUNCTIONS #
