@@ -71,11 +71,38 @@ def get_log(log_n, log_t=0):
         return records
 
 
-def program_log(log_n, regs, interval):
-    """Takes the log number to program (2, 3, or 4, corresponding to the historical
-    logs 1, 2, and 3), a list of registers to log, and the interval at which to log
-    them. Logs are programmed by writing to the historical log blocks starting at 
-    0x7917 for historical log 1"""
+def program_log(client, log_n, regs, interval, sectors=5):
+    """Takes log number to program(2, 3, 4 for hist log 1, 2, and 3), a list 
+    of registers to log, [OPTIONALLY] the number of sectors to allocate to 
+    that log (0-15, they are shared among all three logs) and the interval
+    at which the meter should record the log. """
+    # write the first register, which contains the number of registers in the
+    # high byte and the number of sectors allocated to this log in the low
+    # byte
+    addr = get_hist_log_addr(log_n)
+    num_regs = len(regs)
+    nr_str = to_binary_string(num_regs, 8)
+    sec_str = to_binary_string(sectors, 8)
+    fst_reg = bin_string_to_int(nr_str + sec_str)
+    client.write_single_register(addr, fst_reg)
+    # Write the second register, which contains the interval. The high byte
+    # of this register is the window status, which is read only.
+    addr += 1
+    client.write_single_register(addr, interval)
+    # Now we need to write the actual list of registers to the block 
+    # sequentially after this in the register list. 
+    addr += 1
+    for reg in regs:
+        client.write_single_register(addr, reg)
+        addr += 1
+    # Go through the rest of these registers and fill them with 0xFF to denote
+    # they are not used
+    # 117 is total number of registers, we start from the diff between that and
+    # the number of registers used
+    addr += 1
+    for i in range(len(regs), 117):
+        client.write_single_register(addr, 0xFF)
+        addr += 1
 
 
 def retrieve_records(client, rpw, max_recs, rec_size):
@@ -166,6 +193,7 @@ def verify_engaged(client, addr):
     log_availability = get_log_availability(log_status_block)
     # the communication port that we are currently connected to.
     current_port = get_current_port(client)
+
     # log_availability is a number that will indicate which port is currently
     # engaged with the log.
     if(log_availability != current_port):
@@ -305,6 +333,21 @@ def get_window_status(block):
 ####################
 
 # ADDRESS HELPER
+def get_hist_log_addr(log_n):
+    if log_n == 2:
+        # hist log 1 (0x7917)
+        addr = 30999
+    elif log_n == 3:
+        # hist log 2 (0x79D7)
+        addr = 31191
+    elif log_n == 4:
+        # hist log 3 (0x7A97)
+        addr = 31383
+    else:
+        raise Exception("Unsupported log_n!\n")
+    return addr
+
+
 def get_log_status_addr(log_n):
     """Returns the register address of log_n"""
     if log_n == 0:
