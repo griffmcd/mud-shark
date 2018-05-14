@@ -40,8 +40,8 @@ def engage_log(c, log_n, s):
     log_availability = get_log_availability(log_status_block)
     max_records = get_max_records(log_status_block)
     # Check that the log is available
-    if log_availability != 0:
-        raise Exception("Log number " + log_n + " is not available!\n")
+    # if log_availability != 0:
+    #     raise Exception("Log number " + log_n + " is not available!\n")
     # write to 0xC34f (1 register) specifying the log to be engage and
     # desired mode
     write_to_engage(c, log_n, 1, s)
@@ -66,7 +66,7 @@ def get_log(log_n, log_t=0):
         log = engage_log(client, log_n, log_t)
         records = retrieve_records(client, log.records_per_window, 
                 log.max_records, log.record_size)
-        disengage_log(log_n)
+        disengage_log(client, log_n)
         client.close()
         return records
 
