@@ -1,0 +1,78 @@
+from tkinter import *
+from client import *
+
+class GUI(Tk):
+    def __init__(self):
+        Tk.__init__(self)
+        self.title("Mud Shark v0.1")
+        # set up menu bar
+        menu = Menu(self)
+        self.config(menu=menu)
+        file = Menu(menu)
+        file.add_command(label="Connect", command=self.connect_popup)
+        file.add_command(label="Exit", command=self.client_exit)
+        menu.add_cascade(label="File", menu=file)
+        self.logs = {'System':0, 'Alarm':1, 'Hist. Log 1': 2, 'Hist. Log 2' : 3, 'Hist. Log 3' : 4, 'I/O Changes' : 5}
+
+    def connect_popup(self):
+        """Popup for file->connect. Popup asks for host and port, stores them,
+        and will attempt to connect to given host and port. (CONNECTION ITSELF
+        NOT INTEGRATED YET)"""
+        self.top = Toplevel(self)
+        self.top.title("Connect to Server")
+        hostLabel = Label(self.top, text="Host: ")
+        hostLabel.grid(sticky=E)
+        portLabel = Label(self.top, text="Port: ")
+        portLabel.grid(sticky=E)
+        self.hostBox = Entry(self.top)
+        self.hostBox.grid(row=0, column=1)
+        self.portBox = Entry(self.top)
+        self.portBox.grid(row=1, column=1)
+        self.logChoice = StringVar()
+        self.logChoice.set('System')
+        self.logDropdown = OptionMenu(self.top, self.logChoice, *self.logs)
+        logLabel = Label(self.top, text="Log: ")
+        logLabel.grid(sticky=E)
+        self.logDropdown.grid(row=2, column=1, sticky=W)
+        submitButton = Button(self.top, text="Enter", command=self.send_connect_info)
+        submitButton.grid(row=1, column=2)
+        closeButton = Button(self.top, text="Close", command=self.close_connect_pop)
+        closeButton.grid(row=2, column=2)
+
+    def close_connect_pop(self):
+        self.hostBox.delete(0, 'end')
+        self.portBox.delete(0, 'end')
+        self.top.withdraw()
+
+    def send_connect_info(self):
+        """Saves the host and port to fields, deletes the boxes, closes top
+        level window"""
+        self.host = self.hostBox.get()
+        self.port = self.portBox.get()
+        self.log_num = self.logs.get(self.logChoice.get())
+        # try to connect 
+        while True:
+            try:
+                client = connect(self.host, self.port)
+                break
+            except Exception as e:
+                raise Exception("Unable to connect to " + self.host + ":"
+                        + str(self.port))
+        self.hostBox.delete(0, 'end')
+        self.portBox.delete(0, 'end')
+        self.top.withdraw()
+        # testing print statements
+        print(self.host)
+        print(self.port)
+        print(self.logChoice.get())
+        print(self.logs.get(self.logChoice.get()))
+
+    def client_exit(self):
+        exit()
+
+def main():
+    gui = GUI()
+    gui.mainloop()
+if __name__== '__main__':
+    main()
+

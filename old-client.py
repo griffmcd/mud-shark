@@ -1,17 +1,18 @@
 from pyModbusTCP.client import ModbusClient
 from collections import namedtuple
 
-#SERVER_HOST = "0.0.0.0"
-#SERVER_PORT = 502
+SERVER_HOST = "0.0.0.0"
+SERVER_PORT = 502
 
-def connect(host, port):
+def connect():
     """Connects to the defined HOST AND PORT. returns the client"""
     c = ModbusClient()
-    c.host(host)
-    c.port(port)
+    c.host(SERVER_HOST)
+    c.port(SERVER_PORT)
     if not c.is_open():
         if not c.open():
-            raise Exception()
+            raise Exception("Unable to connect to " + SERVER_HOST + ":"
+                            + str(SERVER_PORT))
     return c
 
 ### LOG METHODS ### 
@@ -55,11 +56,12 @@ def engage_log(c, log_n, s):
     return log_vals
 
 
-def get_log(client, log_n, log_t=0):
+def get_log(log_n, log_t=0):
     """log_n is the log to be retrieved. s is the type of log to retrieve.
     s is, by default, 0.
     There are three stages to retrieving a log: Engaging it, retrieving the 
     records, and then disengaging the log. Returns a list of records."""
+    client = connect()
     if client.is_open():
         log = engage_log(client, log_n, log_t)
         records = retrieve_records(client, log.records_per_window, 
