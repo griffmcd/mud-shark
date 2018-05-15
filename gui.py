@@ -5,6 +5,9 @@ class GUI(Tk):
     def __init__(self):
         Tk.__init__(self)
         self.title("Mud Shark v0.1")
+        self.geometry('640x480')
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
         # set up menu bar
         menu = Menu(self)
         self.config(menu=menu)
@@ -13,6 +16,19 @@ class GUI(Tk):
         file.add_command(label="Exit", command=self.client_exit)
         menu.add_cascade(label="File", menu=file)
         self.logs = {'System':0, 'Alarm':1, 'Hist. Log 1': 2, 'Hist. Log 2' : 3, 'Hist. Log 3' : 4, 'I/O Changes' : 5}
+        # initialize fields for status bar
+        self.connected = False
+        self.host = "None"
+        self.port = "None"
+        self.log_name = "None"
+        # set up status bar
+        self.status_string = "Host: " + self.host + " | Port: " + str(self.port) + " | Log: " + self.log_name + " | Connection Status: " + str(self.connected)
+        self.statusHost = Label(self, text=self.status_string, bd=1, relief=SUNKEN, anchor=W)
+        self.statusHost.pack(side=BOTTOM, fill=X)
+
+    def update_statusbar(self):
+        self.status_string = "Host: " + self.host + " | Port: " + str(self.port) + " | Log: " + self.log_name + " | Connection Status: " + str(self.connected)
+        self.statusHost.config(text=self.status_string)
 
     def connect_popup(self):
         """Popup for file->connect. Popup asks for host and port, stores them,
@@ -39,6 +55,8 @@ class GUI(Tk):
         closeButton = Button(self.top, text="Close", command=self.close_connect_pop)
         closeButton.grid(row=2, column=2)
 
+
+
     def close_connect_pop(self):
         self.hostBox.delete(0, 'end')
         self.portBox.delete(0, 'end')
@@ -49,18 +67,22 @@ class GUI(Tk):
         level window"""
         self.host = self.hostBox.get()
         self.port = self.portBox.get()
+        self.log_name = self.logChoice.get()
         self.log_num = self.logs.get(self.logChoice.get())
         # try to connect 
         while True:
             try:
                 client = connect(self.host, self.port)
+                self.connected = True
                 break
             except Exception as e:
                 raise Exception("Unable to connect to " + self.host + ":"
                         + str(self.port))
+                break
         self.hostBox.delete(0, 'end')
         self.portBox.delete(0, 'end')
         self.top.withdraw()
+        self.update_statusbar()
         # testing print statements
         print(self.host)
         print(self.port)
