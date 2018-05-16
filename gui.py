@@ -34,8 +34,8 @@ class GUI(Tk):
 
     def connect_popup(self):
         """Popup for file->connect. Popup asks for host and port, stores them,
-        and will attempt to connect to given host and port. (CONNECTION ITSELF
-        NOT INTEGRATED YET)"""
+        and will attempt to connect to given host and port. Raises exception
+        on fail (will be a popup box soon)"""
         self.top = Toplevel(self)
         self.top.title("Connect to Server")
         # host entry field
