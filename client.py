@@ -1,9 +1,6 @@
 from pyModbusTCP.client import ModbusClient
 from collections import namedtuple
 
-#SERVER_HOST = "0.0.0.0"
-#SERVER_PORT = 502
-
 def connect(host, port):
     """Connects to the defined HOST AND PORT. returns the client"""
     c = ModbusClient()
@@ -39,8 +36,8 @@ def engage_log(c, log_n, s):
     log_availability = get_log_availability(log_status_block)
     max_records = get_max_records(log_status_block)
     # Check that the log is available
-    # if log_availability != 0:
-    #     raise Exception("Log number " + log_n + " is not available!\n")
+    if log_availability != 0:
+        raise Exception("Log number " + log_n + " is not available!\n")
     # write to 0xC34f (1 register) specifying the log to be engage and
     # desired mode
     write_to_engage(c, log_n, 1, s)
