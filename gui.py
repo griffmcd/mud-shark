@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 from client import *
 
+
 class MeterValueFrame(Frame):
     def __init__(self, master, **kwargs):
         Frame.__init__(self, master, kwargs)
@@ -52,16 +53,16 @@ class GUI(Tk):
         file.add_command(label="Disconnect", command=self.disconnect)
         file.add_command(label="Exit", command=self.client_exit)
         menu.add_cascade(label="File", menu=file)
-        self.logs = {'System'     : 0, 
-                     'Alarm'      : 1, 
-                     'Hist. Log 1': 2, 
-                     'Hist. Log 2': 3, 
-                     'Hist. Log 3': 4, 
-                     'I/O Changes': 5}
+        self.logs = {0: 'System',
+                     1: 'Alarm',
+                     2: 'Hist. Log 1',
+                     3: 'Hist. Log 2',
+                     4: 'Hist. Log 3',
+                     5: 'I/O Changes'}
 
-        self.modes = {'Program log' :0, 
-                      'Retrieve log':1}
-        # initialize default fields 
+        self.modes = {0: 'Program log',
+                      1: 'Retrieve log'}
+        # initialize default fields
         self.connected = False
         self.host = "None"
         self.port = "None"
