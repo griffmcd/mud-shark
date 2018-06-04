@@ -230,7 +230,7 @@ Full script:
 ```python
 from mudshark_client import *
 
-host = 0.0.0.0
+host = "0.0.0.0"
 port = 502
 
 client = connect(host, port)
