@@ -126,8 +126,8 @@ class GUI(QMainWindow):
         self.connectAct.setText("Connect")
         self.connectAct.triggered.connect(self.connect_popup)
         # disconnect action
-        self.disconnectAct = QAction(QIcon('icons/disconnect.png'), 'Disconnect',
-                                     self)
+        self.disconnectAct = QAction(QIcon('icons/disconnect.png'),
+                                     'Disconnect', self)
         self.disconnectAct.setShortcut('Ctrl+D')
         self.disconnectAct.setText("Disconnect")
         self.disconnectAct.setStatusTip('Disconnect from current'
@@ -144,7 +144,6 @@ class GUI(QMainWindow):
         # about the author action
         self.aboutAuthAct = QAction('About the Author', self)
         self.aboutAuthAct.setText('About the Author')
-
 
     def connect_popup(self):
         self.ConnectionWindow = cw.ConnectWindow(self)
@@ -211,7 +210,6 @@ class GUI(QMainWindow):
         self.menuAbout.addAction(self.aboutAuthAct)
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuAbout.menuAction())
-
 
 
 ##################

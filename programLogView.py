@@ -130,7 +130,7 @@ class ProgramLogWidget(QDialog):
         self.meterValsLayout.setContentsMargins(0, 0, 0, 0)
 
         self.meterValsHeader = QLabel(self.verticalLayoutWidget)
-        self.meterValsHeader.setText("Meter Values to Log (max 64): ")
+        self.meterValsHeader.setText("Meter Values to Log: ")
 
         self.meterValsLayout.addWidget(self.meterValsHeader)
         self.meterValsList = QListWidget(self.verticalLayoutWidget)
