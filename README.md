@@ -176,7 +176,7 @@ program_log(client, log_num, my_registers, interval)
 #### Retrieving a Log
 The easiest way to retrieve records from a log is the get_log() method, which takes the client and a log_number, and returns a list of the records.
 
-```
+```python
 from mudshark_client import *
 host = "0.0.0.0"
 port = 502
