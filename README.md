@@ -17,6 +17,7 @@ You will be presented with this view:
 ![initial view](readme-img/initialview.png "initial view")
 
 Hit Alt+C or use the icon on the toolbar or File->Connect to connect to a meter. This must be done before anything else is possible. Once this occurs, a popup will appear:
+
 ![connect popup](readme-img/connectwindow.png "connect window")
 
 Enter the host and port of the meter you wish to communicate with, along with the log you wish to interact with and the desired mode. There are two modes: program log, and retrieve log. Program log only works with the historical logs (1, 2, and 3), and allows you to set which values and at what intervals those values are recorded. Retrieve log mode allows you to poll the meter, retrieve the records stored for that particular log, and view them or export them from the menu.
