@@ -22,7 +22,7 @@ Hit Alt+C or use the icon on the toolbar or File->Connect to connect to a meter.
 
 Enter the host and port of the meter you wish to communicate with, along with the log you wish to interact with and the desired mode. There are two modes: program log, and retrieve log. Program log only works with the historical logs (1, 2, and 3), and allows you to set which values and at what intervals those values are recorded. Retrieve log mode allows you to poll the meter, retrieve the records stored for that particular log, and view them or export them from the menu.
 
-** NOTE: Retrieve Log is not yet implemented in the GUI wrapper! **
+**NOTE: Retrieve Log is not yet implemented in the GUI wrapper!**
 
 #### Program Log via GUI
 When program log is selected and the user clicks "Submit", the program will attempt to connect to the meter on the entered IP and port. If it is a successful connection, the main window's view will change:
@@ -32,6 +32,6 @@ When program log is selected and the user clicks "Submit", the program will atte
 On the right is a list of meter values you can log. On the left are two dropdown boxes. Interval determines the time interval at which the values selected on the right are recorded to the log. The sector dropdown box allows you to select the number of flash sectors allocated to this log. Each sector is 64kb, minus a sector header of 20 bytes. 15 sectors are available for allocation between all three historical logs. The sum of all sectors used by the three historical logs may be less than 15, but it cannot be greater. If the value is 0, that means that the log will be DISABLED.
 
 #### Retrieve Log via GUI
-** Retrieving the log via the GUI has not been implemented yet! **
+**Retrieving the log via the GUI has not been implemented yet!**
 
 ### Bare-Bones Implementation
