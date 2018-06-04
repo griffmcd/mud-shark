@@ -1,4 +1,4 @@
-import client
+import mudshark_client as client
 from PyQt5.QtWidgets import (QComboBox, QFormLayout, QLabel, QListWidget,
                              QListWidgetItem, QHBoxLayout, QVBoxLayout,
                              QWidget, QFrame, QDialogButtonBox, QDialog)

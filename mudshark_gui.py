@@ -1,6 +1,6 @@
 import sys
 import connectWindow as cw
-import client as client
+import mudshark_client as client
 from PyQt5.QtWidgets import (QAction, qApp, QApplication, QLabel, QMainWindow,
                              QMenu, QSizePolicy, QStackedWidget, QWidget,
                              QMenuBar, QStatusBar, QVBoxLayout)

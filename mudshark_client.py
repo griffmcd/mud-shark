@@ -1,6 +1,84 @@
 from pyModbusTCP.client import ModbusClient
 from collections import namedtuple
 
+logs = {'System': 0,
+        'Alarm': 1,
+        'Hist. Log 1': 2,
+        'Hist. Log 2': 3,
+        'Hist. Log 3': 4,
+        'I/O Changes': 5}
+
+values = ["Volts A-N",
+          "Volts B-N",
+          "Volts C-N",
+          "Amps A",
+          "Amps B",
+          "Amps C",
+          "Watts 3-Ph Total",
+          "VARs 3-Ph Total",
+          "VAs 3-Ph Total",
+          "Power Factor 3-Ph total",
+          "Frequency",
+          "Neutral Current",
+          "W-Hours Received",
+          "W-Hours Delivered",
+          "W-Hours Net",
+          "VAR-hours Net",
+          "VAR-hours Total",
+          "VA-hours Total",
+          "Amps A Average",
+          "Amps B Average",
+          "Amps C Average",
+          "Watts 3-Ph Average",
+          "VARs 3-Ph Average",
+          "VAs 3-Ph Average",
+          "Neutral Current Average",
+          "W-Hours Total"]
+
+registers = {"Volts A-N": [0x116],
+             "Volts B-N": [0x117],
+             "Volts C-N": [0x118],
+             "Amps A": [0x11c],
+             "Amps B": [0x3F3, 0x3f4],
+             "Amps C": [0x03f7, 0x03f8],
+             "Watts 3-Ph Total": [0x03f9, 0x03fa],
+             "VARs 3-Ph Total": [0x03fb, 0x03fc],
+             "VAs 3-Ph Total": [0x03fd, 0x03fe],
+             "Power Factor 3-Ph total": [0x03ff, 0x0400],
+             "Frequency": [0x0401, 0x0402],
+             "Neutral Current": [0x0403, 0x0404],
+             "W-Hours Received": [0x05db, 0x05dc],
+             "W-Hours Delivered": [0x05dd, 0x05de],
+             "W-Hours Net": [0x05df, 0x05e0],
+             "VAR-hours Net": [0x05e7, 0x05e8],
+             "VAR-hours Total": [0x05e9, 0x05ea],
+             "VA-hours Total": [0x05eb, 0x05ec],
+             "Amps A Average": [0x07cf, 0x07ce],
+             "Amps B Average": [0x07d1, 0x07d2],
+             "Amps C Average": [0x07d3, 0x07d4],
+             "Watts 3-Ph Average": [0x07d5, 0x07d6],
+             "VARs 3-Ph Average": [0x07d7, 0x07d8],
+             "VAs 3-Ph Average": [0x07dd, 0x07de],
+             "Neutral Current Average": [0x07e3, 0x07e4],
+             "W-Hours Total": [0x0bdd, 0x0bde]}
+
+def get_interval(num):
+    if num == 0:
+        return 0x80  # end of interval pulse
+    if num < 3:
+        return 0x01  # 1 minute
+    elif num < 5:
+        return 0x02  # 3 minutes
+    elif num < 10:
+        return 0x04  # 5 minutes
+    elif num < 15:
+        return 0x08  # 10 minutes
+    elif num < 30:
+        return 0x10  # 15 minutes
+    elif num < 60:
+        return 0x20  # 30 minutes
+    elif num >= 60:
+        return 0x40  # 60 minutes
 
 def connect(host, port):
     """Connects to the defined HOST AND PORT. returns the client"""
@@ -26,6 +104,12 @@ def disengage_log(client, log_n):
     msg = bin_string_to_int(log_str + e + s)
     client.write_single_register(49999, msg) 
 
+
+def get_hist_log_num(num):
+    if num > 0 and num < 4:
+        return num + 1
+    else:
+        raise Exception("invalid historical log number")
 
 def engage_log(c, log_n, s):
     """First step. Engage the log. log_n is the log to be engaged. s is the

@@ -36,15 +36,139 @@ On the right is a list of meter values you can log. On the left are two dropdown
 
 ### Bare-Bones Implementation
 
-To get started using MudShark in a python script, first import the client, and define the host and port of the meter:
+To get started using MudShark in a python script, first import the client, and define the host and port of the meter. Then call the connect() method with the host and port. The connect method returns the ModbusTCP client, so be sure to assign it to something. **(Note: Connect raises an Exception if the connection was not successful)**:
 
 ```python
-import mudshark_client as shark
+from mudshark_client import *
 
 host = "0.0.0.0"
 port = 502
+
+client = connect(host, port)
 ```
 
 #### Programming a Log
+To program the log, first you have to get the log number of the log you want to program. The client has a dictionary **logs** that will return the appropriate log number for the log name key:
 
+```python
+logs = {'System': 0,
+        'Alarm': 1,
+        'Hist. Log 1': 2,
+        'Hist. Log 2': 3,
+        'Hist. Log 3': 4,
+        'I/O Changes': 5}
+```
 
+Only the Historical Logs 1, 2, and 3 are programmable (which confusingly have log numbers 2, 3, and 4).  There is also a method get_hist_log_num() that takes a number 1,2, or 3 and returns the correct log number, in case you don't want to keep track (although you can just add 1 to it). 
+
+```python
+log_num = get_hist_log_num(1)
+```
+
+We also have to get the interval at which we want the log to record the values. It supports logging at 1, 3, 5, 10, 15, 30, and 60 minute intervals, and another option for End Of Interval Pulse. The client has a method get_interval() that takes a number and returns the interval closest to it, rounding down. So if its less than 3, it will return the code for 1 minute, less than 5 returns the code for 3 minutes, etc. 60 and above defaults to 60 minutes, and 0 is the End of Interval Pulse.
+
+```python
+interval = get_interval(15)  # returns the hex code for 15 minutes
+```
+
+**OPTIONAL** You can also set the number of sectors (0-15), or leave it blank to default to 5. There are 15 flash sectors divided among all three of the historical logs. Setting the sectors to 0 will disable the log.
+
+The only other thing left to configure before we program the log is the registers the meter will record in that log. There are numerous values, and some values occupy a single register, while others occupy more than one. The program_log function takes a list of register addresses. If a value uses more than one register, both register addresses must be added to the list. 
+
+mudshark_client.py contains a list of all the measured values:
+
+```python
+values = ["Volts A-N",
+          "Volts B-N",
+          "Volts C-N",
+          "Amps A",
+          "Amps B",
+          "Amps C",
+          "Watts 3-Ph Total",
+          "VARs 3-Ph Total",
+          "VAs 3-Ph Total",
+          "Power Factor 3-Ph total",
+          "Frequency",
+          "Neutral Current",
+          "W-Hours Received",
+          "W-Hours Delivered",
+          "W-Hours Net",
+          "VAR-hours Net",
+          "VAR-hours Total",
+          "VA-hours Total",
+          "Amps A Average",
+          "Amps B Average",
+          "Amps C Average",
+          "Watts 3-Ph Average",
+          "VARs 3-Ph Average",
+          "VAs 3-Ph Average",
+          "Neutral Current Average",
+          "W-Hours Total"]
+```
+
+and a dictionary that contains the registers associated with those values:
+
+```python
+registers = {"Volts A-N": [0x116],
+             "Volts B-N": [0x117],
+             "Volts C-N": [0x118],
+             "Amps A": [0x11c],
+             "Amps B": [0x3F3, 0x3f4],
+             "Amps C": [0x03f7, 0x03f8],
+             "Watts 3-Ph Total": [0x03f9, 0x03fa],
+             "VARs 3-Ph Total": [0x03fb, 0x03fc],
+             "VAs 3-Ph Total": [0x03fd, 0x03fe],
+             "Power Factor 3-Ph total": [0x03ff, 0x0400],
+             "Frequency": [0x0401, 0x0402],
+             "Neutral Current": [0x0403, 0x0404],
+             "W-Hours Received": [0x05db, 0x05dc],
+             "W-Hours Delivered": [0x05dd, 0x05de],
+             "W-Hours Net": [0x05df, 0x05e0],
+             "VAR-hours Net": [0x05e7, 0x05e8],
+             "VAR-hours Total": [0x05e9, 0x05ea],
+             "VA-hours Total": [0x05eb, 0x05ec],
+             "Amps A Average": [0x07cf, 0x07ce],
+             "Amps B Average": [0x07d1, 0x07d2],
+             "Amps C Average": [0x07d3, 0x07d4],
+             "Watts 3-Ph Average": [0x07d5, 0x07d6],
+             "VARs 3-Ph Average": [0x07d7, 0x07d8],
+             "VAs 3-Ph Average": [0x07dd, 0x07de],
+             "Neutral Current Average": [0x07e3, 0x07e4],
+             "W-Hours Total": [0x0bdd, 0x0bde]}
+```
+
+The key is to look in the values list, get the keys you want, and then look up the associated list of register(s) in the registers dictionary. For example, if you wanted to log "W-Hours Total" and "Amps C Average":
+
+```python
+my_values = ["W-Hours Total", "Amps C Average"]
+my_registers = []
+for val in my_values:
+    my_registers.append(registers.get(val))
+```
+
+Now that we have all the requisite fields, we are free to program the log with the program_log method, like so:
+
+```python
+program_log(client, log_num, my_registers, interval, sectors)  # remember, sectors is optional
+```
+
+And you've successfully programmed the log! The full script:
+
+```python
+from mudshark_client import *
+
+host = "0.0.0.0"
+port = 502
+
+client = connect(host, port)
+log_num = get_hist_log_num(1)
+# Or, get the log num by its string name:
+# log_num = logs.get('Hist. Log 1')
+interval = get_interval(15)
+my_values = ["W-Hours Total", "Amps C Average"]
+my_registers = []
+for val in my_values:
+    my_registers.append(registers.get(val))
+
+program_log(client, log_num, my_registers, interval)
+```

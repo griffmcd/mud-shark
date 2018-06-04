@@ -1,4 +1,4 @@
-import client
+import mudshark_client as client
 import programLogView as plv
 import retrieveLogView as rlv
 from PyQt5.QtWidgets import (QComboBox, QDialog, QErrorMessage, QGridLayout,
