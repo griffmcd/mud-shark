@@ -3,7 +3,7 @@ A client built specifically around the ElectroIndustries Shark 200 and Shark 200
 
 ## Overview
 
-The core functionality of this program (i.e. everything that actually talks to the meter) is located in client.py. gui.py is the main graphical interface, which utilizes the methods in client.py. connectWindow.py, programLogView.py, and retrieveLogView.py are all pyqt widgets used in gui.py. 
+The core functionality of this program (i.e. everything that actually talks to the meter) is located in mudshark_client.py. mudshark_gui.py is the main graphical interface, which utilizes the methods in mudshark_client.py. connectWindow.py, programLogView.py, and retrieveLogView.py are all pyqt widgets used in gui.py. 
 
 ## Usage
 ### GUI wrapper
@@ -35,3 +35,16 @@ On the right is a list of meter values you can log. On the left are two dropdown
 **Retrieving the log via the GUI has not been implemented yet!**
 
 ### Bare-Bones Implementation
+
+To get started using MudShark in a python script, first import the client, and define the host and port of the meter:
+
+```python
+import mudshark_client as shark
+
+host = "0.0.0.0"
+port = 502
+```
+
+#### Programming a Log
+
+
