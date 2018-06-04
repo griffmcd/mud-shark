@@ -111,7 +111,7 @@ def get_hist_log_num(num):
     else:
         raise Exception("invalid historical log number")
 
-def engage_log(c, log_n, s):
+def engage_log(c, log_n, s=0):
     """First step. Engage the log. log_n is the log to be engaged. s is the
     type of log to retrieve. Returns a named tuple of all log details.
     0 is a normal record, 1 is timestamp only, 2 is complete memory image."""

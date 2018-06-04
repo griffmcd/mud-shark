@@ -172,3 +172,77 @@ for val in my_values:
 
 program_log(client, log_num, my_registers, interval)
 ```
+
+#### Retrieving a Log
+
+There are three steps involved in retrieving log data from the Shark 200 meters:
+1. Engage the Log
+2. Retrieve the Records
+3. Disengage the Log
+
+the method to engage the log is engage_log(). It takes as parameters the client, the log number of the log to engage, and an option flag indicating the type of log to retrieve. There are three log types: 0 is a normal record, 1 is timestamp only, and 2 is a complete memory image. If this is not given, it defaults to 0. engage_log returns a namedtuple that contains the log's name, number, status, record size, records per window, and the total number of records in the log.
+
+So the first step is to get our log number. A dictionary containing the logs and their respective numbers are included:
+
+```
+logs = {'System': 0,
+        'Alarm': 1,
+        'Hist. Log 1': 2,
+        'Hist. Log 2': 3,
+        'Hist. Log 3': 4,
+        'I/O Changes': 5}
+```
+
+Unlike programming the log, we can retrieve from any of the 6 logs on the device. So to engage the log, we write:
+
+```python
+from mudshark_client import *
+
+host = 0.0.0.0
+port = 502
+
+client = connect(host, port)
+log_num = 2  # historical log 1
+
+log_status_info = engage_log(client, log_num)  # left off the optional log type, so it defaults to 0
+```
+
+Next, we must retrieve the records. This is done with the retrieve_records method. This takes the client, the records per window, the total number of records, and the size of each record as parameters. It returns a list containing all the records. The log_status_info named tuple above contains all the info we need to retrieve the records:
+
+```python
+recs_per_window = log_status_info.records_per_window
+total_records = log_status_info.max_records
+record_size = log_status_info.record_size
+
+records = retrieve_records(client, recs_per_window, total_records, record_size)
+```
+
+Now that we have retrieved our records, we can disengage the log. We do this with the disengage_log method. All we have to do is provide it the client and the log number of the log we connected to, and it handles the rest:
+
+```python
+disengage_log(client, log_num)
+```
+
+And you've successfully retrieved the records and disengaged the log. You are now free to use the records however you please, be that export them to another format, or do your own modeling of the data!
+
+Full script:
+
+```python
+from mudshark_client import *
+
+host = 0.0.0.0
+port = 502
+
+client = connect(host, port)
+log_num = 2  # historical log 1
+
+log_status_info = engage_log(client, log_num)
+
+recs_per_window = log_status_info.records_per_window
+total_records = log_status_info.max_records
+record_size = log_status_info.record_size
+
+records = retrieve_records(client, recs_per_window, total_records, record_size)
+
+disengage_log(client, log_num)
+```
