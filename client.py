@@ -29,7 +29,7 @@ def disengage_log(client, log_n):
 
 def engage_log(c, log_n, s):
     """First step. Engage the log. log_n is the log to be engaged. s is the
-    type of log to retrieve.
+    type of log to retrieve. Returns a named tuple of all log details.
     0 is a normal record, 1 is timestamp only, 2 is complete memory image."""
     log = namedtuple('log', ['num', 'status', 'record_size',
                              'records_per_window', 'max_records'])

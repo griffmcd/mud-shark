@@ -1,4 +1,6 @@
 import client
+import programLogView as plv
+import retrieveLogView as rlv
 from PyQt5.QtWidgets import (QComboBox, QDialog, QErrorMessage, QGridLayout,
                              QLabel, QLineEdit, QPushButton)
 
@@ -89,9 +91,17 @@ class ConnectWindow(QDialog):
         self.parent.port = self.port
         self.parent.log_name = self.log_name
         self.parent.log_num = self.log_num
+        self.parent.client = self.client
+        self.parent.connected = self.connected
+        # we assign these here because we need to create the client before
+        # some of the functionality of these views works
+        self.parent.programLogView = plv.ProgramLogWidget(self)
+        self.parent.retrieveLogView = rlv.RetrieveLogWidget(self)
+        self.parent.stackedWidget.addWidget(self.parent.retrieveLogView)
+        self.parent.stackedWidget.addWidget(self.parent.programLogView)
         self.parent.updateMode(self.mode)
-        self.parent.connected = True
         self.parent.update_statusbar()
+
         self.close()
 
     def get_log_number(self, log_name):

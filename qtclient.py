@@ -1,30 +1,40 @@
 import sys
 import connectWindow as cw
-import programLogView as plv
-import retrieveLogView as rlv
-from PyQt5.QtWidgets import (QAction, qApp, QApplication, QHBoxLayout, QLabel,
-                             QMainWindow, QMenu, QSizePolicy, QStackedWidget,
-                             QWidget)
+import client as client
+from PyQt5.QtWidgets import (QAction, qApp, QApplication, QLabel, QMainWindow,
+                             QMenu, QSizePolicy, QStackedWidget, QWidget,
+                             QMenuBar, QStatusBar, QVBoxLayout)
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import (pyqtSignal, QObject)
+from PyQt5.QtCore import (pyqtSignal, QObject, QRect)
 
 
-class InitialWidget(QWidget):
+class InitialView(QWidget):
     def __init__(self, parent):
-        super(InitialWidget, self).__init__()
+        super(InitialView, self).__init__()
         self.parent = parent
+        self.width = 800
+        self.height = 600
+        self.resize(self.width, self.height)
         self.initUI()
 
     def initUI(self):
-        self.layout = QHBoxLayout()
-        self.welcomeMessage = QLabel("Please Connect to a Meter.")
-        self.welcomeMessage.setSizePolicy(QSizePolicy(QSizePolicy.Fixed,
-                                                      QSizePolicy.Fixed))
-        self.welcomeMessage.setMinimumHeight(300)
-        self.welcomeMessage.setMinimumWidth(200)
-        self.layout.addWidget(self.welcomeMessage)
-        self.setLayout(self.layout)
+        self.initialViewLabel = QLabel(self)
+        self.initialViewLabel.setGeometry(QRect(290, 290, 220, 20))
+        self.initialViewLabel.setText("Pleace connect to a meter. (Alt + C)")
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(1)
+        sizePolicy.setHeightForWidth(
+            self.initialViewLabel.sizePolicy().hasHeightForWidth())
+        self.initialViewLabel.setSizePolicy(sizePolicy)
 
+        self.verticalLayoutWidget = QWidget(self)
+        self.verticalLayoutWidget.setGeometry(QRect(10, 10, 781, 581))
+
+        self.initialWidgetLayout = QVBoxLayout(self.verticalLayoutWidget)
+        self.initialWidgetLayout.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayoutWidget.raise_()
+        self.initialViewLabel.raise_()
 
 class ModeChange(QObject):
     modeChange = pyqtSignal()
@@ -33,32 +43,49 @@ class ModeChange(QObject):
 class GUI(QMainWindow):
     def __init__(self):
         super(GUI, self).__init__()
-
-        self.initUI()
-
-    def initUI(self):
-        self.init_actions()
+        self.title = "MudShark v0.1"
+        self.setWindowTitle(self.title)
+        self.defWidth = 800
+        self.defHeight = 600
+        # self.setGeometry(100, 100, self.defWidth, self.defHeight)
+        self.resize(self.defWidth, self.defHeight)
         self.host = "None"
         self.port = "None"
         self.log_name = "None"
+        self.log_num = 0
         self.mode = "None"
         self.connected = False
-        self.modeChangeSignal = ModeChange()
         self.client = None
-        self.init_statusbar()
+        self.recSize = 0
+        self.rpw = 0
+        self.numRecs = 0
+        self.init_actions()
+        self.modeChangeSignal = ModeChange()
+        self.initUI()
+
+    def initUI(self):
+        # central widget contains a widget containing a vertical layout,
+        # and that widget contains the stacked widget
+        self.centralWidget = QWidget(self)
+        self.centerVLayoutWidget = QWidget(self.centralWidget)
+        self.centerVLayoutWidget.setGeometry(QRect(0, 0, 800, 550))
+        self.centralWidLayout = QVBoxLayout(self.centerVLayoutWidget)
+        self.centralWidLayout.setContentsMargins(0, 0, 0, 0)
+
+        # stacked widget is contained inside centralWidLayout
+        self.stackedWidget = QStackedWidget(self.centerVLayoutWidget)
+
+        # this is where we instantiate the different views inside stackedWidget
+        self.initialView = InitialView(self)
+        self.stackedWidget.addWidget(self.initialView)
+        self.stackedWidget.setCurrentWidget(self.initialView)
+        self.centralWidLayout.addWidget(self.stackedWidget)
+
+        self.setCentralWidget(self.centralWidget)
+
         self.init_menu()
+        self.init_statusbar()
         self.init_toolbar()
-        self.setGeometry(150, 150, 800, 600)
-        self.setWindowTitle('MudShark v0.1')
-        self.programLogWidget = plv.ProgramLogWidget(self)
-        self.retrieveLogWidget = rlv.RetrieveLogWidget(self)
-        self.initialWidget = InitialWidget(self)
-        self.widgetStack = QStackedWidget()
-        self.widgetStack.addWidget(self.initialWidget)
-        self.widgetStack.addWidget(self.retrieveLogWidget)
-        self.widgetStack.addWidget(self.programLogWidget)
-        self.widgetStack.setCurrentWidget(self.initialWidget)
-        self.setCentralWidget(self.widgetStack)
         self.show()
 
     def updateMode(self, mode):
@@ -68,30 +95,54 @@ class GUI(QMainWindow):
 
     def update_view(self):
         if self.mode == "None":
-            self.widgetStack.setCurrentWidget(self.initialWidget)
+            self.stackedWidget.setCurrentWidget(self.initialView)
         elif self.mode == "Program log":
-            self.widgetStack.setCurrentWidget(self.programLogWidget)
+            self.stackedWidget.setCurrentWidget(self.programLogView)
         elif self.mode == "Retrieve log":
-            self.widgetStack.setCurrentWidget(self.retrieveLogWidget)
+            self.logDet = client.engage_log(self.client, self.log_num, 0)
+            self.recSize = self.logDet.record_size
+            self.rpw = self.logDet.records_per_window
+            self.numRecs = self.logDet.max_records / self.logDet.records_per_window
+            self.records = client.retrieve_records(self.client,
+                                                   self.logDet.records_per_window,
+                                                   self.logDet.max_records,
+                                                   self.logDet.record_size)
+            client.disengage_log(self.client, self.log_num)
+            self.stackedWidget.setCurrentWidget(self.retrieveLogView)
 
     def init_actions(self):
         # exit action
         self.exitAct = QAction(QIcon('exit.png'), '&Exit', self)
         self.exitAct.setShortcut('Ctrl+Q')
         self.exitAct.setStatusTip('Exit application')
+        self.exitAct.setText("Exit")
         self.exitAct.triggered.connect(qApp.quit)
         # connect action
-        self.fileConnectAct = QAction(QIcon('connect.png'), 'Connect', self)
-        self.fileConnectAct.setShortcut('Ctrl+C')
-        self.fileConnectAct.setStatusTip('Connect to a Modbus Meter')
-        self.fileConnectAct.triggered.connect(self.connect_popup)
+        self.connectAct = QAction(QIcon('connect.png'), 'Connect', self)
+        self.connectAct.setShortcut('Alt+C')
+        self.connectAct.setStatusTip('Connect to a Modbus Meter')
+        self.connectAct.setText("Connect")
+        self.connectAct.triggered.connect(self.connect_popup)
         # disconnect action
-        self.fileDisconnectAct = QAction(QIcon('disconnect.png'), 'Disconnect',
-                                         self)
-        self.fileDisconnectAct.setShortcut('Ctrl+D')
-        self.fileDisconnectAct.setStatusTip('Disconnect from current'
-                                            ' connection')
-        self.fileDisconnectAct.triggered.connect(self.disconnect)
+        self.disconnectAct = QAction(QIcon('disconnect.png'), 'Disconnect',
+                                     self)
+        self.disconnectAct.setShortcut('Ctrl+D')
+        self.disconnectAct.setText("Disconnect")
+        self.disconnectAct.setStatusTip('Disconnect from current'
+                                        ' connection')
+        self.disconnectAct.triggered.connect(self.disconnect)
+        # export as action
+        self.exportAsAct = QAction('Export As..', self)
+        self.exportAsAct.setShortcut('Ctrl+e')
+        self.exportAsAct.setText('Export As..')
+        # help action
+        self.helpAct = QAction('Help', self)
+        self.helpAct.setShortcut('Ctrl+h')
+        self.helpAct.setText('Help')
+        # about the author action
+        self.aboutAuthAct = QAction('About the Author', self)
+        self.aboutAuthAct.setText('About the Author')
+
 
     def connect_popup(self):
         self.ConnectionWindow = cw.ConnectWindow(self)
@@ -101,13 +152,15 @@ class GUI(QMainWindow):
         self.host = "None"
         self.port = "None"
         self.log_name = "None"
+        self.connected = False
         self.updateMode("None")
-        self.Connected = True
         self.update_statusbar()
         if self.client is not None:
             self.client.close()
 
     def init_statusbar(self):
+        self.statusbar = QStatusBar(self)
+        self.setStatusBar(self.statusbar)
         self.statusMessage = QLabel()
         statusString = ("Host: " + self.host + "  |  Port: " + self.port
                         + "  |  Log: " + self.log_name + "  |  Mode: "
@@ -126,19 +179,38 @@ class GUI(QMainWindow):
 
     def init_toolbar(self):
         self.toolbar = self.addToolBar("Toolbar")
-        self.toolbar.addAction(self.fileConnectAct)
-        self.toolbar.addAction(self.fileDisconnectAct)
+        self.toolbar.addAction(self.connectAct)
+        self.toolbar.addAction(self.disconnectAct)
         self.toolbar.addAction(self.exitAct)
 
     def init_menu(self):
-        self.menubar = self.menuBar()
-        fileMenu = self.menubar.addMenu('&File')
+        self.menubar = QMenuBar(self)
+        self.menubar.setGeometry(QRect(0, 0, 800, 20))
+
+        self.menuFile = QMenu(self.menubar)
+        self.menuFile.setTitle("File")
+        self.menuAbout = QMenu(self.menubar)
+        self.menuAbout.setTitle("About")
+        self.setMenuBar(self.menubar)
         # File -> Connect
-        fileMenu.addAction(self.fileConnectAct)
+        self.menuFile.addAction(self.connectAct)
         # File -> Disconnect
-        fileMenu.addAction(self.fileDisconnectAct)
+        self.menuFile.addAction(self.disconnectAct)
+        self.menuFile.addSeparator()
+        # File -> Export As..
+        self.menubar.addAction(self.exportAsAct)
+        self.menuFile.addSeparator()
         # File -> Exit
-        fileMenu.addAction(self.exitAct)
+        self.menuFile.addAction(self.exitAct)
+
+        # About -> Help
+        self.menuAbout.addAction(self.helpAct)
+        # About -> About the Author
+        self.menuAbout.addAction(self.aboutAuthAct)
+        self.menubar.addAction(self.menuFile.menuAction())
+        self.menubar.addAction(self.menuAbout.menuAction())
+
+
 
 ##################
 # EVENT HANDLING #
